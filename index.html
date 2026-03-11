@@ -7,7 +7,6 @@
     <meta name="mobile-web-app-capable" content="yes">
     <title>JumpyRun - Play to Earn</title>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
-    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;800&display=swap');
         
@@ -39,7 +38,6 @@
             overflow: hidden;
         }
         
-        /* Header */
         .game-header {
             position: absolute;
             top: 0;
@@ -92,7 +90,6 @@
             touch-action: none;
         }
         
-        /* HUD */
         .hud {
             position: absolute;
             top: 60px;
@@ -145,7 +142,6 @@
             border: 2px solid;
         }
         
-        /* Touch Controls */
         .touch-zone {
             position: absolute;
             bottom: 0;
@@ -194,7 +190,6 @@
             text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
         }
         
-        /* Rewards Drawer - FIXED */
         .rewards-drawer {
             position: absolute;
             bottom: 0;
@@ -222,15 +217,6 @@
             margin: 0 auto 12px;
             cursor: pointer;
             position: relative;
-        }
-        
-        .drawer-handle::after {
-            content: '';
-            position: absolute;
-            top: -10px;
-            left: -20px;
-            right: -20px;
-            bottom: -10px;
         }
         
         .drawer-close {
@@ -324,7 +310,6 @@
             50% { transform: scale(1.02); }
         }
         
-        /* Toggle Button */
         .drawer-toggle {
             position: absolute;
             bottom: 20px;
@@ -352,7 +337,6 @@
             display: none;
         }
         
-        /* Modals */
         .modal {
             position: absolute;
             top: 0;
@@ -497,7 +481,6 @@
         
         .hidden { display: none !important; }
         
-        /* Game Over */
         .game-over-content { text-align: center; }
         .trophy { font-size: 50px; margin-bottom: 10px; animation: bounce 2s infinite; }
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
@@ -520,20 +503,20 @@
         .result-value { font-family: 'Fredoka One'; font-size: 20px; color: #333; }
         .result-value.tokens { color: #FFD93D; }
         
-        /* Loading State */
         .loading-overlay {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 300;
             color: white;
+            padding: 20px;
         }
         
         .spinner {
@@ -548,20 +531,46 @@
         
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        .error-message {
-            background: #ff6b6b;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 10px;
-            margin-top: 10px;
-            font-size: 13px;
+        .status-message {
             text-align: center;
             max-width: 90%;
+            line-height: 1.5;
+        }
+        
+        .debug-info {
+            position: absolute;
+            top: 50px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            z-index: 1000;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .retry-btn {
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: #FF6B6B;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-weight: 700;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
     <div class="mobile-container">
+        <!-- Debug Panel -->
+        <div class="debug-info" id="debugPanel"></div>
+        
         <!-- Header -->
         <div class="game-header">
             <div class="logo">🐰 JumpyRun</div>
@@ -573,7 +582,8 @@
         <!-- Loading Overlay -->
         <div class="loading-overlay hidden" id="loadingOverlay">
             <div class="spinner"></div>
-            <div id="loadingText">Connecting...</div>
+            <div class="status-message" id="loadingText">Connecting...</div>
+            <button class="retry-btn hidden" id="retryBtn" onclick="retryConnection()">Try Again</button>
         </div>
         
         <!-- Game Canvas -->
@@ -605,7 +615,7 @@
             </div>
         </div>
         
-        <!-- Rewards Drawer - FIXED WITH CLOSE BUTTON -->
+        <!-- Rewards Drawer -->
         <div class="rewards-drawer" id="rewardsDrawer">
             <div class="drawer-handle" onclick="toggleDrawer()"></div>
             <button class="drawer-close" onclick="closeDrawer()">×</button>
@@ -646,11 +656,11 @@
                         <span>›</span>
                     </div>
                     
-                    <div class="wallet-option" onclick="connectWalletConnect()">
-                        <div class="wallet-icon" style="background: #3B99FC; color: white;">🔗</div>
+                    <div class="wallet-option" onclick="connectTrustWallet()">
+                        <div class="wallet-icon" style="background: #3375BB; color: white;">💙</div>
                         <div class="wallet-info">
-                            <div class="wallet-name">WalletConnect</div>
-                            <div class="wallet-desc">Trust, SafePal, TokenPocket & more</div>
+                            <div class="wallet-name">Trust Wallet</div>
+                            <div class="wallet-desc">Popular mobile wallet</div>
                         </div>
                         <span>›</span>
                     </div>
@@ -660,6 +670,15 @@
                         <div class="wallet-info">
                             <div class="wallet-name">Binance Wallet</div>
                             <div class="wallet-desc">Binance Chain Wallet</div>
+                        </div>
+                        <span>›</span>
+                    </div>
+                    
+                    <div class="wallet-option" onclick="connectWalletConnect()">
+                        <div class="wallet-icon" style="background: #3B99FC; color: white;">🔗</div>
+                        <div class="wallet-info">
+                            <div class="wallet-name">WalletConnect</div>
+                            <div class="wallet-desc">Other wallets (QR code)</div>
                         </div>
                         <span>›</span>
                     </div>
@@ -753,12 +772,21 @@
     </div>
 
     <script>
-        // Web3 State
+        // Debug logging
+        function debug(msg) {
+            console.log(msg);
+            const panel = document.getElementById('debugPanel');
+            panel.style.display = 'block';
+            panel.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${msg}</div>`;
+            panel.scrollTop = panel.scrollHeight;
+        }
+
+        // State
         let web3;
         let provider;
         let accounts = [];
+        let currentConnectionMethod = null;
         
-        // Game State
         const state = {
             walletConnected: false,
             walletAddress: '',
@@ -772,26 +800,34 @@
             lastEarned: null,
             drawerOpen: false,
             nfts: {
-                1: { name: 'Legendary', multiplier: 5, price: 0.105, icon: '👑', color: '#fdcb6e', supply: 100 },
-                2: { name: 'Epic', multiplier: 4, price: 0.085, icon: '💎', color: '#b2bec3', supply: 500 },
-                3: { name: 'Rare', multiplier: 3, price: 0.065, icon: '🏆', color: '#e17055', supply: 1500 },
-                4: { name: 'Uncommon', multiplier: 2, price: 0.045, icon: '🥈', color: '#0984e3', supply: 3000 },
-                5: { name: 'Common', multiplier: 1.5, price: 0.025, icon: '🥉', color: '#00b894', supply: 4900 }
+                1: { name: 'Legendary', multiplier: 5, price: 0.105, icon: '👑', color: '#fdcb6e' },
+                2: { name: 'Epic', multiplier: 4, price: 0.085, icon: '💎', color: '#b2bec3' },
+                3: { name: 'Rare', multiplier: 3, price: 0.065, icon: '🏆', color: '#e17055' },
+                4: { name: 'Uncommon', multiplier: 2, price: 0.045, icon: '🥈', color: '#0984e3' },
+                5: { name: 'Common', multiplier: 1.5, price: 0.025, icon: '🥉', color: '#00b894' }
             }
         };
 
-        // Initialize Web3
-        async function initWeb3() {
-            // Check if Web3 is injected (MetaMask or other)
-            if (typeof window.ethereum !== 'undefined') {
-                web3 = new Web3(window.ethereum);
-                return true;
-            } else if (typeof window.web3 !== 'undefined') {
-                web3 = new Web3(window.web3.currentProvider);
-                return true;
+        // Initialize
+        window.addEventListener('load', async () => {
+            debug('Page loaded');
+            
+            // Check if already connected
+            if (window.ethereum) {
+                debug('MetaMask/ethereum detected');
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                    if (accounts.length > 0) {
+                        debug('Already connected: ' + accounts[0]);
+                        await finalizeConnection(accounts[0], 'MetaMask');
+                    }
+                } catch (e) {
+                    debug('Auto-check error: ' + e.message);
+                }
+            } else {
+                debug('No ethereum provider detected');
             }
-            return false;
-        }
+        });
 
         // Wallet Button Handler
         function handleWalletClick() {
@@ -810,209 +846,11 @@
             document.getElementById('walletModal').classList.add('hidden');
         }
 
-        // Connect MetaMask
-        async function connectMetaMask() {
-            showLoading('Connecting to MetaMask...');
-            
-            try {
-                if (typeof window.ethereum === 'undefined') {
-                    throw new Error('MetaMask not installed');
-                }
-                
-                // Request account access
-                const accounts = await window.ethereum.request({ 
-                    method: 'eth_requestAccounts' 
-                });
-                
-                if (accounts.length === 0) {
-                    throw new Error('No accounts found');
-                }
-                
-                web3 = new Web3(window.ethereum);
-                
-                // Get network
-                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-                
-                // Switch to BSC if needed
-                if (chainId !== '0x38') {
-                    try {
-                        await window.ethereum.request({
-                            method: 'wallet_switchEthereumChain',
-                            params: [{ chainId: '0x38' }]
-                        });
-                    } catch (switchError) {
-                        // Add BSC network if not exists
-                        if (switchError.code === 4902) {
-                            await window.ethereum.request({
-                                method: 'wallet_addEthereumChain',
-                                params: [{
-                                    chainId: '0x38',
-                                    chainName: 'BNB Smart Chain',
-                                    nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
-                                    rpcUrls: ['https://bsc-dataseed.binance.org/'],
-                                    blockExplorerUrls: ['https://bscscan.com']
-                                }]
-                            });
-                        }
-                    }
-                }
-                
-                await finalizeConnection(accounts[0], 'MetaMask');
-                
-            } catch (error) {
-                showError(error.message);
-                hideLoading();
-            }
-        }
-
-        // Connect WalletConnect
-        async function connectWalletConnect() {
-            showLoading('Connecting via WalletConnect...');
-            
-            try {
-                const WalletConnectProvider = window.WalletConnectProvider.default;
-                
-                provider = new WalletConnectProvider({
-                    rpc: {
-                        56: "https://bsc-dataseed.binance.org/",
-                        97: "https://data-seed-prebsc-1-s1.binance.org:8545/"
-                    },
-                    chainId: 56,
-                    qrcode: true,
-                    qrcodeModalOptions: {
-                        mobileLinks: [
-                            "metamask",
-                            "trust",
-                            "safepal",
-                            "tokenpocket",
-                            "mathwallet"
-                        ]
-                    }
-                });
-                
-                await provider.enable();
-                
-                web3 = new Web3(provider);
-                const accounts = await web3.eth.getAccounts();
-                
-                // Handle disconnect
-                provider.on("disconnect", (code, reason) => {
-                    disconnectWallet();
-                });
-                
-                await finalizeConnection(accounts[0], 'WalletConnect');
-                
-            } catch (error) {
-                showError(error.message);
-                hideLoading();
-            }
-        }
-
-        // Connect Binance Wallet
-        async function connectBinance() {
-            showLoading('Connecting to Binance Wallet...');
-            
-            try {
-                if (typeof window.BinanceChain === 'undefined') {
-                    throw new Error('Binance Wallet not installed');
-                }
-                
-                const accounts = await window.BinanceChain.request({ method: 'eth_requestAccounts' });
-                
-                if (accounts.length === 0) {
-                    throw new Error('No accounts found');
-                }
-                
-                web3 = new Web3(window.BinanceChain);
-                await finalizeConnection(accounts[0], 'Binance');
-                
-            } catch (error) {
-                showError(error.message);
-                hideLoading();
-            }
-        }
-
-        // Finalize Connection
-        async function finalizeConnection(address, walletType) {
-            state.walletConnected = true;
-            state.walletAddress = address;
-            state.walletType = walletType;
-            
-            // Get balance
-            let balance = '0';
-            try {
-                const bal = await web3.eth.getBalance(address);
-                balance = (bal / 1e18).toFixed(4);
-            } catch (e) {
-                console.log('Could not fetch balance');
-            }
-            
-            // Update UI
-            const shortAddress = address.substring(0, 6) + '...' + address.substring(address.length - 4);
-            const btn = document.getElementById('walletBtn');
-            btn.innerHTML = `<span>${shortAddress}</span>`;
-            btn.classList.add('connected');
-            
-            hideLoading();
-            closeWalletModal();
-            
-            // Show NFT modal
-            document.getElementById('nftModal').classList.remove('hidden');
-            
-            // Check existing rewards
-            checkExistingRewards();
-            
-            // Listen for account changes
-            if (window.ethereum) {
-                window.ethereum.on('accountsChanged', (accounts) => {
-                    if (accounts.length === 0) {
-                        disconnectWallet();
-                    } else {
-                        state.walletAddress = accounts[0];
-                        const short = accounts[0].substring(0, 6) + '...' + accounts[0].substring(accounts[0].length - 4);
-                        document.getElementById('walletBtn').innerHTML = `<span>${short}</span>`;
-                    }
-                });
-                
-                window.ethereum.on('chainChanged', () => {
-                    window.location.reload();
-                });
-            }
-        }
-
-        // Disconnect Wallet
-        function disconnectWallet() {
-            state.walletConnected = false;
-            state.walletAddress = '';
-            state.walletType = '';
-            
-            if (provider && provider.disconnect) {
-                provider.disconnect();
-            }
-            
-            const btn = document.getElementById('walletBtn');
-            btn.innerHTML = '<span>🔗 Connect</span>';
-            btn.classList.remove('connected');
-            
-            // Reset game state
-            document.getElementById('gameHUD').style.display = 'none';
-            document.getElementById('touchControls').style.display = 'none';
-            document.getElementById('nftBadge').style.display = 'none';
-            document.getElementById('drawerToggle').classList.add('hidden');
-            document.getElementById('rewardsDrawer').classList.remove('open');
-            
-            state.isPlaying = false;
-            cancelAnimationFrame(gameLoop);
-            
-            // Clear canvas and redraw initial state
-            resizeCanvas();
-            draw();
-        }
-
-        // UI Helpers
-        function showLoading(text) {
+        // Show loading with retry option
+        function showLoading(text, showRetry = false) {
             document.getElementById('loadingText').textContent = text;
             document.getElementById('loadingOverlay').classList.remove('hidden');
+            document.getElementById('retryBtn').classList.toggle('hidden', !showRetry);
             document.getElementById('walletBtn').disabled = true;
         }
 
@@ -1021,30 +859,261 @@
             document.getElementById('walletBtn').disabled = false;
         }
 
-        function showError(message) {
+        function showError(message, canRetry = false) {
             hideLoading();
-            const overlay = document.getElementById('loadingOverlay');
-            overlay.innerHTML = `
-                <div class="spinner" style="border-color: #ff6b6b; border-top-color: transparent;"></div>
-                <div style="color: #ff6b6b; margin-bottom: 10px;">Error</div>
-                <div style="font-size: 14px; text-align: center; padding: 0 20px;">${message}</div>
-                <button onclick="hideError()" style="margin-top: 20px; padding: 10px 20px; background: white; border: none; border-radius: 20px; color: #333; font-weight: 700;">OK</button>
-            `;
-            overlay.classList.remove('hidden');
+            document.getElementById('loadingText').innerHTML = `<span style="color: #ff6b6b;">${message}</span>`;
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+            document.getElementById('retryBtn').classList.toggle('hidden', !canRetry);
         }
 
-        function hideError() {
-            document.getElementById('loadingOverlay').classList.add('hidden');
-            // Reset overlay content
-            setTimeout(() => {
-                document.getElementById('loadingOverlay').innerHTML = `
-                    <div class="spinner"></div>
-                    <div id="loadingText">Connecting...</div>
-                `;
-            }, 300);
+        function retryConnection() {
+            hideLoading();
+            if (currentConnectionMethod) {
+                currentConnectionMethod();
+            }
         }
 
-        // Drawer Functions - FIXED
+        // Connect MetaMask with deep link fallback
+        async function connectMetaMask() {
+            currentConnectionMethod = connectMetaMask;
+            closeWalletModal();
+            showLoading('Connecting to MetaMask...');
+            debug('Attempting MetaMask connection');
+
+            try {
+                // Check if mobile
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                
+                if (isMobile && !window.ethereum) {
+                    // Mobile without MetaMask - try deep link
+                    debug('Mobile without MetaMask, trying deep link');
+                    const currentUrl = encodeURIComponent(window.location.href);
+                    const deepLink = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`;
+                    
+                    // Show options
+                    showError('MetaMask app not detected.<br><br>Please install MetaMask app and use its browser, or open this page in MetaMask browser.', true);
+                    return;
+                }
+
+                if (!window.ethereum) {
+                    throw new Error('MetaMask not installed. Please install MetaMask extension.');
+                }
+
+                debug('Requesting accounts...');
+                const accounts = await window.ethereum.request({ 
+                    method: 'eth_requestAccounts' 
+                });
+
+                debug('Got accounts: ' + JSON.stringify(accounts));
+
+                if (!accounts || accounts.length === 0) {
+                    throw new Error('No accounts found. Please unlock MetaMask.');
+                }
+
+                // Check network
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                debug('Current chain: ' + chainId);
+
+                // Switch to BSC if needed
+                if (chainId !== '0x38' && chainId !== '0x61') {
+                    debug('Wrong network, switching to BSC...');
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0x38' }]
+                        });
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: '0x38',
+                                    chainName: 'BNB Smart Chain Mainnet',
+                                    nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+                                    rpcUrls: ['https://bsc-dataseed.binance.org/'],
+                                    blockExplorerUrls: ['https://bscscan.com']
+                                }]
+                            });
+                        } else {
+                            throw switchError;
+                        }
+                    }
+                }
+
+                web3 = new Web3(window.ethereum);
+                await finalizeConnection(accounts[0], 'MetaMask');
+
+            } catch (error) {
+                debug('MetaMask error: ' + error.message);
+                showError(error.message, true);
+            }
+        }
+
+        // Connect Trust Wallet
+        async function connectTrustWallet() {
+            currentConnectionMethod = connectTrustWallet;
+            closeWalletModal();
+            showLoading('Connecting to Trust Wallet...');
+            debug('Attempting Trust Wallet connection');
+
+            try {
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                
+                if (isMobile) {
+                    // Try to open in Trust Wallet browser
+                    const trustDeepLink = `https://link.trustwallet.com/open_url?coin_id=20000714&url=${encodeURIComponent(window.location.href)}`;
+                    
+                    // Check if Trust is available
+                    if (window.ethereum && window.ethereum.isTrust) {
+                        debug('Trust Wallet detected');
+                        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                        web3 = new Web3(window.ethereum);
+                        await finalizeConnection(accounts[0], 'Trust Wallet');
+                    } else {
+                        // Redirect to Trust
+                        debug('Redirecting to Trust Wallet...');
+                        window.location.href = trustDeepLink;
+                        showError('Opening Trust Wallet...<br>If nothing happens, please manually open this page in Trust Wallet browser.', false);
+                    }
+                } else {
+                    // Desktop - use WalletConnect
+                    await connectWalletConnect();
+                }
+            } catch (error) {
+                debug('Trust error: ' + error.message);
+                showError(error.message, true);
+            }
+        }
+
+        // Connect Binance Wallet
+        async function connectBinance() {
+            currentConnectionMethod = connectBinance;
+            closeWalletModal();
+            showLoading('Connecting to Binance Wallet...');
+            debug('Attempting Binance connection');
+
+            try {
+                if (typeof window.BinanceChain === 'undefined') {
+                    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                    if (isMobile) {
+                        showError('Please open this page in Binance App browser or install Binance Wallet extension.', true);
+                        return;
+                    }
+                    throw new Error('Binance Wallet not installed');
+                }
+
+                const accounts = await window.BinanceChain.request({ method: 'eth_requestAccounts' });
+                
+                if (!accounts || accounts.length === 0) {
+                    throw new Error('No accounts found');
+                }
+
+                web3 = new Web3(window.BinanceChain);
+                await finalizeConnection(accounts[0], 'Binance');
+
+            } catch (error) {
+                debug('Binance error: ' + error.message);
+                showError(error.message, true);
+            }
+        }
+
+        // Connect WalletConnect (simplified)
+        async function connectWalletConnect() {
+            currentConnectionMethod = connectWalletConnect;
+            closeWalletModal();
+            showLoading('Preparing WalletConnect...');
+            debug('WalletConnect selected');
+
+            showError('WalletConnect requires additional setup.<br><br>For now, please use MetaMask or Trust Wallet directly.', true);
+        }
+
+        // Finalize connection
+        async function finalizeConnection(address, walletType) {
+            debug('Finalizing connection: ' + address + ' via ' + walletType);
+            
+            state.walletConnected = true;
+            state.walletAddress = address;
+            state.walletType = walletType;
+
+            // Get balance
+            let balance = '0';
+            try {
+                const bal = await web3.eth.getBalance(address);
+                balance = (bal / 1e18).toFixed(4);
+                debug('Balance: ' + balance + ' BNB');
+            } catch (e) {
+                debug('Balance fetch failed: ' + e.message);
+            }
+
+            // Update UI
+            const shortAddress = address.substring(0, 6) + '...' + address.substring(address.length - 4);
+            const btn = document.getElementById('walletBtn');
+            btn.innerHTML = `<span>${shortAddress}</span>`;
+            btn.classList.add('connected');
+
+            hideLoading();
+            closeWalletModal();
+
+            // Show NFT modal
+            document.getElementById('nftModal').classList.remove('hidden');
+
+            // Check existing rewards
+            checkExistingRewards();
+
+            // Setup listeners
+            setupWalletListeners();
+        }
+
+        function setupWalletListeners() {
+            if (window.ethereum) {
+                window.ethereum.on('accountsChanged', (accounts) => {
+                    debug('Accounts changed: ' + JSON.stringify(accounts));
+                    if (accounts.length === 0) {
+                        disconnectWallet();
+                    } else {
+                        state.walletAddress = accounts[0];
+                        const short = accounts[0].substring(0, 6) + '...' + accounts[0].substring(accounts[0].length - 4);
+                        document.getElementById('walletBtn').innerHTML = `<span>${short}</span>`;
+                    }
+                });
+
+                window.ethereum.on('chainChanged', (chainId) => {
+                    debug('Chain changed: ' + chainId);
+                    window.location.reload();
+                });
+
+                window.ethereum.on('disconnect', () => {
+                    debug('Wallet disconnected');
+                    disconnectWallet();
+                });
+            }
+        }
+
+        // Disconnect
+        function disconnectWallet() {
+            debug('Disconnecting wallet');
+            state.walletConnected = false;
+            state.walletAddress = '';
+            state.walletType = '';
+
+            const btn = document.getElementById('walletBtn');
+            btn.innerHTML = '<span>🔗 Connect</span>';
+            btn.classList.remove('connected');
+
+            document.getElementById('gameHUD').style.display = 'none';
+            document.getElementById('touchControls').style.display = 'none';
+            document.getElementById('nftBadge').style.display = 'none';
+            document.getElementById('drawerToggle').classList.add('hidden');
+            document.getElementById('rewardsDrawer').classList.remove('open');
+
+            state.isPlaying = false;
+            cancelAnimationFrame(gameLoop);
+            
+            resizeCanvas();
+            draw();
+        }
+
+        // Drawer functions
         function openDrawer() {
             state.drawerOpen = true;
             document.getElementById('rewardsDrawer').classList.add('open');
@@ -1060,11 +1129,8 @@
         }
 
         function toggleDrawer() {
-            if (state.drawerOpen) {
-                closeDrawer();
-            } else {
-                openDrawer();
-            }
+            if (state.drawerOpen) closeDrawer();
+            else openDrawer();
         }
 
         // NFT Selection
@@ -1099,7 +1165,7 @@
             gameLoop = requestAnimationFrame(update);
         }
 
-        // Game Logic (Canvas & Physics)
+        // Game Engine
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
@@ -1552,11 +1618,6 @@
             showLoading('Processing withdrawal...');
             
             try {
-                // Here you would call your smart contract
-                // const contract = new web3.eth.Contract(ABI, CONTRACT_ADDRESS);
-                // await contract.methods.withdrawRewards().send({ from: state.walletAddress });
-                
-                // Simulate for now
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 
                 hideLoading();
@@ -1574,14 +1635,13 @@
             }
         }
 
-        // Touch handling
+        // Event listeners
         document.addEventListener('touchmove', e => {
             if (e.target === canvas) e.preventDefault();
         }, { passive: false });
         
         document.addEventListener('gesturestart', e => e.preventDefault());
 
-        // Close drawer when clicking outside
         document.addEventListener('click', (e) => {
             const drawer = document.getElementById('rewardsDrawer');
             const toggle = document.getElementById('drawerToggle');
@@ -1593,10 +1653,9 @@
             }
         });
 
-        // Initialize
+        // Init
         resizeCanvas();
         draw();
-        initWeb3();
         setInterval(updateWithdrawalStatus, 60000);
     </script>
 </body>
